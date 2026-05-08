@@ -22,13 +22,14 @@
         .leaderboard-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:15px;margin-top:15px;text-align:center;}
         .leaderboard-box h3{color:#FFD700;margin-bottom:8px;}
         .leaderboard-box p{font-size:13px;margin:4px 0;color:#ccc;}
+        .top-player{font-size:20px;color:#4CAF50;font-weight:bold;margin:8px 0;}
+        .player-list{text-align:left;margin:5px 0;font-size:14px;}
+        .player-list div{padding:5px;margin:2px 0;background:rgba(255,255,255,0.05);border-radius:5px;}
         .referral-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:15px;margin-top:15px;text-align:center;}
         .referral-box h3{color:#FFD700;margin-bottom:8px;}
-        .referral-box p{font-size:14px;margin:5px 0;color:#ccc;}
         .ref-btn{display:block;padding:12px;margin:8px 0;background:#4CAF50;color:white;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;text-decoration:none;}
         .ref-btn.orange{background:#FF8C00;}
         .ref-btn.blue{background:#1E90FF;}
-        .top-player{font-size:18px;color:#FFD700;margin:5px 0;}
         .prize-amount{font-size:28px;color:#FFD700;font-weight:bold;}
     </style>
 </head>
@@ -55,22 +56,67 @@
         <div class="message" id="message"></div>
 
         <div class="leaderboard-box">
-            <h3>🏅 Weekly Leaderboard</h3>
-            <p>Top player wins <b>10 GHS Airtime</b> every Sunday!</p>
-            <p>📞 Winner announced here & contacted via: <b>0279576459</b></p>
-            <p style="font-size:11px;color:#aaa;">Play daily to increase your coins!</p>
+            <h3>🏅 Live Leaderboard</h3>
+            <div class="top-player" id="topPlayer">Loading...</div>
+            <div class="player-list" id="playerList"></div>
+            <p style="font-size:11px;color:#FFD700;">📞 Winner contacts via SMS: <b>0279576459</b></p>
         </div>
 
         <div class="referral-box">
-            <h3>💎 Earn More Coins</h3>
-            <p>Sign up on these platforms and get bonus spins:</p>
+            <h3>💎 Support the Developer</h3>
             <a class="ref-btn orange" href="https://noones.com/r/AstuteDevario609" target="_blank">🟠 NoOnes - Trade Crypto</a>
             <a class="ref-btn blue" href="https://www.binance.com" target="_blank">🔵 Binance - Buy & Sell Crypto</a>
-            <p style="font-size:12px;margin-top:8px;color:#FFD700;">⭐ Use these links to support the developer!</p>
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDmNM8Oeoj-oKeFvXocUhbzyCr5-FD4OqI",
+            authDomain: "spin-game-1e987.firebaseapp.com",
+            projectId: "spin-game-1e987",
+            storageBucket: "spin-game-1e987.firebasestorage.app",
+            messagingSenderId: "114924316575",
+            appId: "1:114924316575:web:6b69b0306c2a317d7f7faa",
+            measurementId: "G-LVETLXRZZR"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.addScore = async function(name, score) {
+            await addDoc(collection(db, "scores"), {
+                name: name,
+                score: score,
+                time: new Date().toISOString()
+            });
+        };
+
+        function loadLeaderboard() {
+            const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
+            onSnapshot(q, (snapshot) => {
+                let topName = "No players yet";
+                let topScore = 0;
+                let listHTML = "";
+                let rank = 1;
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (rank === 1) {
+                        topName = data.name;
+                        topScore = data.score;
+                    }
+                    listHTML += `<div>${rank}. ${data.name} - 🪙 ${data.score}</div>`;
+                    rank++;
+                });
+                document.getElementById("topPlayer").innerHTML = `👑 ${topName}: ${topScore} Coins`;
+                document.getElementById("playerList").innerHTML = listHTML || "<div>No players yet. Be the first!</div>";
+            });
+        }
+
+        loadLeaderboard();
+
         var canvas = document.getElementById('wheel');
         var ctx = canvas.getContext('2d');
         var segments = [
@@ -87,6 +133,7 @@
         var spinsLeft = 5;
         var spinning = false;
         var currentAngle = 0;
+        var playerName = "Player" + Math.floor(Math.random() * 9999);
 
         function drawWheel(rotation){
             ctx.clearRect(0,0,300,300);
@@ -119,7 +166,7 @@
             ctx.stroke();
         }
 
-        function spin(){
+        window.spin = function(){
             if(spinning || spinsLeft<=0)return;
             spinning = true;
             spinsLeft--;
@@ -156,6 +203,7 @@
                     if(prize.value>0){
                         coins+=prize.value;
                         document.getElementById('coins').innerHTML = coins;
+                        window.addScore(playerName, coins);
                         document.getElementById('message').innerHTML = '🎉 Congratulations!';
                         document.getElementById('message').style.color = '#4CAF50';
                     }
@@ -169,7 +217,7 @@
                 }
             }
             animate();
-        }
+        };
 
         drawWheel(0);
     </script>
