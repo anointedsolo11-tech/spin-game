@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Spin & Win</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:sans-serif;text-align:center;background:#1a1a2e;color:white;min-height:100vh;padding:15px;}
+        h1{color:#FFD700;font-size:22px;margin:10px 0;}
+        .container{max-width:380px;margin:0 auto;}
+        .wheel-container{position:relative;width:300px;height:300px;margin:15px auto;}
+        canvas{width:100%;height:100%;border-radius:50%;border:5px solid #FFD700;box-shadow:0 0 20px rgba(255,215,0,0.3);}
+        .pointer{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:35px;z-index:2;}
+        .coin-display{font-size:18px;margin:10px 0;background:rgba(255,215,0,0.1);padding:8px 20px;border-radius:20px;display:inline-block;}
+        .spin-btn{padding:15px 50px;font-size:18px;background:#FFD700;color:#1a1a2e;border:none;border-radius:30px;font-weight:bold;cursor:pointer;margin:10px 0;}
+        .spin-btn:disabled{background:#555;color:#999;cursor:not-allowed;}
+        .result{font-size:18px;margin:8px 0;min-height:25px;font-weight:bold;}
+        .spins-left{font-size:14px;color:#aaa;}
+        .message{font-size:20px;margin:10px 0;min-height:28px;font-weight:bold;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 Spin & Win</h1>
+        
+        <div class="wheel-container">
+            <div class="pointer">▼</div>
+            <canvas id="wheel" width="300" height="300"></canvas>
+        </div>
+        
+        <div class="coin-display">🪙 <span id="coins">0</span> Coins</div>
+        <div class="spins-left">Spins left: <span id="spinsLeft">5</span></div>
+        
+        <button class="spin-btn" id="spinBtn" onclick="spin()">🎯 SPIN</button>
+        
+        <div class="result" id="result"></div>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        var canvas = document.getElementById('wheel');
+        var ctx = canvas.getContext('2d');
+        var segments = [
+            {label:'10🪙',value:10,color:'#FF6B6B'},
+            {label:'5🪙',value:5,color:'#4ECDC4'},
+            {label:'20🪙',value:20,color:'#FFD93D'},
+            {label:'2🪙',value:2,color:'#6C5CE7'},
+            {label:'50🪙',value:50,color:'#FF8C00'},
+            {label:'0🪙',value:0,color:'#FF4757'},
+            {label:'15🪙',value:15,color:'#2ED573'},
+            {label:'3🪙',value:3,color:'#1E90FF'}
+        ];
+        var coins = 0;
+        var spinsLeft = 5;
+        var spinning = false;
+        var currentAngle = 0;
+
+        function drawWheel(rotation){
+            ctx.clearRect(0,0,300,300);
+            var angle = (2*Math.PI)/segments.length;
+            for(var i=0;i<segments.length;i++){
+                var startAngle = i*angle + rotation;
+                var endAngle = startAngle + angle;
+                ctx.beginPath();
+                ctx.moveTo(150,150);
+                ctx.arc(150,150,140,startAngle,endAngle);
+                ctx.fillStyle = segments[i].color;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.save();
+                ctx.translate(150,150);
+                ctx.rotate(startAngle + angle/2);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillText(segments[i].label,60,5);
+                ctx.restore();
+            }
+            ctx.beginPath();
+            ctx.arc(150,150,30,0,2*Math.PI);
+            ctx.fillStyle = '#FFD700';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function spin(){
+            if(spinning || spinsLeft<=0)return;
+            spinning = true;
+            spinsLeft--;
+            document.getElementById('spinsLeft').innerHTML = spinsLeft;
+            document.getElementById('spinBtn').disabled = true;
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('message').innerHTML = '';
+
+            var spinDuration = 3000 + Math.random()*2000;
+            var totalRotation = (Math.random()*3600)+1800;
+            var startAngle = currentAngle;
+            var startTime = Date.now();
+
+            function animate(){
+                var elapsed = Date.now()-startTime;
+                var progress = Math.min(elapsed/spinDuration,1);
+                var ease = 1 - Math.pow(1-progress,3);
+                currentAngle = startAngle + totalRotation*ease;
+                drawWheel(currentAngle*(Math.PI/180));
+                
+                if(progress<1){
+                    requestAnimationFrame(animate);
+                }else{
+                    var angle = (2*Math.PI)/segments.length;
+                    var pointerAngle = (Math.PI*1.5 - (currentAngle*(Math.PI/180))) % (2*Math.PI);
+                    if(pointerAngle<0)pointerAngle+=2*Math.PI;
+                    var index = Math.floor(pointerAngle/angle);
+                    index = (segments.length - index) % segments.length;
+                    
+                    var prize = segments[index];
+                    document.getElementById('result').innerHTML = 'You won: '+prize.label+'!';
+                    document.getElementById('result').style.color = prize.color;
+                    
+                    if(prize.value>0){
+                        coins+=prize.value;
+                        document.getElementById('coins').innerHTML = coins;
+                        document.getElementById('message').innerHTML = '🎉 Congratulations!';
+                        document.getElementById('message').style.color = '#4CAF50';
+                    }
+                    
+                    spinning = false;
+                    document.getElementById('spinBtn').disabled = false;
+                    if(spinsLeft<=0){
+                        document.getElementById('spinBtn').innerHTML = '🔒 No Spins';
+                        document.getElementById('message').innerHTML += ' Come back tomorrow!';
+                    }
+                }
+            }
+            animate();
+        }
+
+        drawWheel(0);
+    </script>
+</body>
+</html>
