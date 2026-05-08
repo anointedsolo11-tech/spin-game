@@ -9,6 +9,7 @@
         body{font-family:sans-serif;text-align:center;background:#1a1a2e;color:white;min-height:100vh;padding:15px;}
         h1{color:#FFD700;font-size:22px;margin:10px 0;}
         .container{max-width:380px;margin:0 auto;}
+        .prize-banner{background:linear-gradient(135deg,#FF8C00,#FFD700);color:#1a1a2e;padding:12px;border-radius:10px;margin:10px 0;font-weight:bold;font-size:15px;}
         .wheel-container{position:relative;width:300px;height:300px;margin:15px auto;}
         canvas{width:100%;height:100%;border-radius:50%;border:5px solid #FFD700;box-shadow:0 0 20px rgba(255,215,0,0.3);}
         .pointer{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:35px;z-index:2;}
@@ -18,17 +19,27 @@
         .result{font-size:18px;margin:8px 0;min-height:25px;font-weight:bold;}
         .spins-left{font-size:14px;color:#aaa;}
         .message{font-size:20px;margin:10px 0;min-height:28px;font-weight:bold;}
-        .referral-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:15px;margin-top:20px;text-align:center;}
+        .leaderboard-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:15px;margin-top:15px;text-align:center;}
+        .leaderboard-box h3{color:#FFD700;margin-bottom:8px;}
+        .leaderboard-box p{font-size:13px;margin:4px 0;color:#ccc;}
+        .referral-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:15px;margin-top:15px;text-align:center;}
         .referral-box h3{color:#FFD700;margin-bottom:8px;}
         .referral-box p{font-size:14px;margin:5px 0;color:#ccc;}
         .ref-btn{display:block;padding:12px;margin:8px 0;background:#4CAF50;color:white;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;text-decoration:none;}
         .ref-btn.orange{background:#FF8C00;}
         .ref-btn.blue{background:#1E90FF;}
+        .top-player{font-size:18px;color:#FFD700;margin:5px 0;}
+        .prize-amount{font-size:28px;color:#FFD700;font-weight:bold;}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎰 Spin & Win</h1>
+        
+        <div class="prize-banner">
+            🏆 WEEKLY PRIZE: <span class="prize-amount">10 GHS</span> AIRTIME!<br>
+            Highest coins wins every Sunday!
+        </div>
         
         <div class="wheel-container">
             <div class="pointer">▼</div>
@@ -42,6 +53,13 @@
         
         <div class="result" id="result"></div>
         <div class="message" id="message"></div>
+
+        <div class="leaderboard-box">
+            <h3>🏅 Weekly Leaderboard</h3>
+            <p>Top player wins <b>10 GHS Airtime</b> every Sunday!</p>
+            <p>📞 Winner announced here & contacted via: <b>0279576459</b></p>
+            <p style="font-size:11px;color:#aaa;">Play daily to increase your coins!</p>
+        </div>
 
         <div class="referral-box">
             <h3>💎 Earn More Coins</h3>
