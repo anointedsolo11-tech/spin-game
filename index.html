@@ -10,6 +10,9 @@
         h1{color:#FFD700;font-size:22px;margin:10px 0;}
         .container{max-width:380px;margin:0 auto;}
         .prize-banner{background:linear-gradient(135deg,#FF8C00,#FFD700);color:#1a1a2e;padding:12px;border-radius:10px;margin:10px 0;font-weight:bold;font-size:15px;}
+        .name-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:10px;padding:15px;margin:10px 0;}
+        .name-box input{padding:10px;font-size:16px;width:70%;border-radius:5px;border:none;text-align:center;}
+        .name-box button{padding:10px 20px;font-size:16px;background:#FFD700;color:#1a1a2e;border:none;border-radius:5px;font-weight:bold;cursor:pointer;margin-left:5px;}
         .wheel-container{position:relative;width:300px;height:300px;margin:15px auto;}
         canvas{width:100%;height:100%;border-radius:50%;border:5px solid #FFD700;box-shadow:0 0 20px rgba(255,215,0,0.3);}
         .pointer{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:35px;z-index:2;}
@@ -21,7 +24,6 @@
         .message{font-size:20px;margin:10px 0;min-height:28px;font-weight:bold;}
         .leaderboard-box{background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:15px;margin-top:15px;text-align:center;}
         .leaderboard-box h3{color:#FFD700;margin-bottom:8px;}
-        .leaderboard-box p{font-size:13px;margin:4px 0;color:#ccc;}
         .top-player{font-size:20px;color:#4CAF50;font-weight:bold;margin:8px 0;}
         .player-list{text-align:left;margin:5px 0;font-size:14px;}
         .player-list div{padding:5px;margin:2px 0;background:rgba(255,255,255,0.05);border-radius:5px;}
@@ -31,6 +33,7 @@
         .ref-btn.orange{background:#FF8C00;}
         .ref-btn.blue{background:#1E90FF;}
         .prize-amount{font-size:28px;color:#FFD700;font-weight:bold;}
+        .game-area{display:none;}
     </style>
 </head>
 <body>
@@ -41,23 +44,32 @@
             🏆 WEEKLY PRIZE: <span class="prize-amount">10 GHS</span> AIRTIME!<br>
             Highest coins wins every Sunday!
         </div>
-        
-        <div class="wheel-container">
-            <div class="pointer">▼</div>
-            <canvas id="wheel" width="300" height="300"></canvas>
+
+        <div class="name-box" id="nameBox">
+            <p style="margin-bottom:8px;">Enter your name to play:</p>
+            <input type="text" id="nameInput" placeholder="Your name" maxlength="15">
+            <button onclick="startGame()">🎯 PLAY</button>
         </div>
-        
-        <div class="coin-display">🪙 <span id="coins">0</span> Coins</div>
-        <div class="spins-left">Spins left: <span id="spinsLeft">5</span></div>
-        
-        <button class="spin-btn" id="spinBtn" onclick="spin()">🎯 SPIN</button>
-        
-        <div class="result" id="result"></div>
-        <div class="message" id="message"></div>
+
+        <div class="game-area" id="gameArea">
+            <p style="color:#FFD700;">Playing as: <b id="displayName"></b></p>
+            <div class="wheel-container">
+                <div class="pointer">▼</div>
+                <canvas id="wheel" width="300" height="300"></canvas>
+            </div>
+            
+            <div class="coin-display">🪙 <span id="coins">0</span> Coins</div>
+            <div class="spins-left">Spins left: <span id="spinsLeft">5</span></div>
+            
+            <button class="spin-btn" id="spinBtn" onclick="spin()">🎯 SPIN</button>
+            
+            <div class="result" id="result"></div>
+            <div class="message" id="message"></div>
+        </div>
 
         <div class="leaderboard-box">
             <h3>🏅 Live Leaderboard</h3>
-            <div class="top-player" id="topPlayer">Loading...</div>
+            <div class="top-player" id="topPlayer">No players yet</div>
             <div class="player-list" id="playerList"></div>
             <p style="font-size:11px;color:#FFD700;">📞 Winner contacts via SMS: <b>0279576459</b></p>
         </div>
@@ -71,7 +83,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, where, getDocs, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDmNM8Oeoj-oKeFvXocUhbzyCr5-FD4OqI",
@@ -86,12 +98,46 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        window.addScore = async function(name, score) {
-            await addDoc(collection(db, "scores"), {
-                name: name,
-                score: score,
-                time: new Date().toISOString()
-            });
+        window.playerName = "";
+        window.coins = 0;
+        window.spinsLeft = 5;
+        window.spinning = false;
+        window.currentAngle = 0;
+        window.playerDocId = null;
+
+        window.startGame = function() {
+            var name = document.getElementById("nameInput").value.trim();
+            if (name === "") { alert("Please enter your name!"); return; }
+            window.playerName = name;
+            document.getElementById("displayName").innerHTML = name;
+            document.getElementById("nameBox").style.display = "none";
+            document.getElementById("gameArea").style.display = "block";
+            checkExistingPlayer(name);
+        };
+
+        async function checkExistingPlayer(name) {
+            const q = query(collection(db, "scores"), where("name", "==", name));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                window.playerDocId = doc.id;
+                window.coins = doc.data().score;
+                document.getElementById("coins").innerHTML = window.coins;
+            }
+        }
+
+        window.addScore = async function(name, points) {
+            if (window.playerDocId) {
+                const docRef = doc(db, "scores", window.playerDocId);
+                await updateDoc(docRef, { score: increment(points) });
+            } else {
+                const newDoc = await addDoc(collection(db, "scores"), {
+                    name: name,
+                    score: points,
+                    time: new Date().toISOString()
+                });
+                window.playerDocId = newDoc.id;
+            }
         };
 
         function loadLeaderboard() {
@@ -103,15 +149,12 @@
                 let rank = 1;
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    if (rank === 1) {
-                        topName = data.name;
-                        topScore = data.score;
-                    }
+                    if (rank === 1) { topName = data.name; topScore = data.score; }
                     listHTML += `<div>${rank}. ${data.name} - 🪙 ${data.score}</div>`;
                     rank++;
                 });
-                document.getElementById("topPlayer").innerHTML = `👑 ${topName}: ${topScore} Coins`;
-                document.getElementById("playerList").innerHTML = listHTML || "<div>No players yet. Be the first!</div>";
+                document.getElementById("topPlayer").innerHTML = topScore > 0 ? `👑 ${topName}: ${topScore} Coins` : "No players yet";
+                document.getElementById("playerList").innerHTML = listHTML || "<div>Be the first to play!</div>";
             });
         }
 
@@ -129,11 +172,6 @@
             {label:'15🪙',value:15,color:'#2ED573'},
             {label:'3🪙',value:3,color:'#1E90FF'}
         ];
-        var coins = 0;
-        var spinsLeft = 5;
-        var spinning = false;
-        var currentAngle = 0;
-        var playerName = "Player" + Math.floor(Math.random() * 9999);
 
         function drawWheel(rotation){
             ctx.clearRect(0,0,300,300);
@@ -167,32 +205,33 @@
         }
 
         window.spin = function(){
-            if(spinning || spinsLeft<=0)return;
-            spinning = true;
-            spinsLeft--;
-            document.getElementById('spinsLeft').innerHTML = spinsLeft;
+            if (window.playerName === "") return;
+            if (window.spinning || window.spinsLeft <= 0) return;
+            window.spinning = true;
+            window.spinsLeft--;
+            document.getElementById('spinsLeft').innerHTML = window.spinsLeft;
             document.getElementById('spinBtn').disabled = true;
             document.getElementById('result').innerHTML = '';
             document.getElementById('message').innerHTML = '';
 
             var spinDuration = 3000 + Math.random()*2000;
             var totalRotation = (Math.random()*3600)+1800;
-            var startAngle = currentAngle;
+            var startAngle = window.currentAngle;
             var startTime = Date.now();
 
             function animate(){
                 var elapsed = Date.now()-startTime;
                 var progress = Math.min(elapsed/spinDuration,1);
                 var ease = 1 - Math.pow(1-progress,3);
-                currentAngle = startAngle + totalRotation*ease;
-                drawWheel(currentAngle*(Math.PI/180));
+                window.currentAngle = startAngle + totalRotation*ease;
+                drawWheel(window.currentAngle*(Math.PI/180));
                 
                 if(progress<1){
                     requestAnimationFrame(animate);
                 }else{
                     var angle = (2*Math.PI)/segments.length;
-                    var pointerAngle = (Math.PI*1.5 - (currentAngle*(Math.PI/180))) % (2*Math.PI);
-                    if(pointerAngle<0)pointerAngle+=2*Math.PI;
+                    var pointerAngle = (Math.PI*1.5 - (window.currentAngle*(Math.PI/180))) % (2*Math.PI);
+                    if(pointerAngle<0) pointerAngle += 2*Math.PI;
                     var index = Math.floor(pointerAngle/angle);
                     index = (segments.length - index) % segments.length;
                     
@@ -201,16 +240,16 @@
                     document.getElementById('result').style.color = prize.color;
                     
                     if(prize.value>0){
-                        coins+=prize.value;
-                        document.getElementById('coins').innerHTML = coins;
-                        window.addScore(playerName, coins);
+                        window.coins += prize.value;
+                        document.getElementById('coins').innerHTML = window.coins;
+                        window.addScore(window.playerName, prize.value);
                         document.getElementById('message').innerHTML = '🎉 Congratulations!';
                         document.getElementById('message').style.color = '#4CAF50';
                     }
                     
-                    spinning = false;
+                    window.spinning = false;
                     document.getElementById('spinBtn').disabled = false;
-                    if(spinsLeft<=0){
+                    if(window.spinsLeft<=0){
                         document.getElementById('spinBtn').innerHTML = '🔒 No Spins';
                         document.getElementById('message').innerHTML += ' Come back tomorrow!';
                     }
