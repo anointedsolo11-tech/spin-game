@@ -89,7 +89,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, where, getDocs, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, where, getDocs, doc, updateDoc, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDmNM8Oeoj-oKeFvXocUhbzyCr5-FD4OqI",
@@ -126,15 +126,21 @@
             const q = query(collection(db, "scores"), where("name", "==", name));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                window.playerDocId = doc.id;
-                window.coins = doc.data().score;
+                const docData = snapshot.docs[0];
+                window.playerDocId = docData.id;
+                window.coins = docData.data().score;
                 document.getElementById("coins").innerHTML = window.coins;
             }
         }
 
         window.addScore = async function(name, points) {
-            if (window.playerDocId) {
+            const q = query(collection(db, "scores"), where("name", "==", name));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const docRef = doc(db, "scores", snapshot.docs[0].id);
+                window.playerDocId = snapshot.docs[0].id;
+                await updateDoc(docRef, { score: increment(points) });
+            } else if (window.playerDocId) {
                 const docRef = doc(db, "scores", window.playerDocId);
                 await updateDoc(docRef, { score: increment(points) });
             } else {
