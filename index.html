@@ -126,15 +126,21 @@
             const q = query(collection(db, "scores"), where("name", "==", name));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                window.playerDocId = doc.id;
-                window.coins = doc.data().score;
+                const docData = snapshot.docs[0];
+                window.playerDocId = docData.id;
+                window.coins = docData.data().score;
                 document.getElementById("coins").innerHTML = window.coins;
             }
         }
 
         window.addScore = async function(name, points) {
-            if (window.playerDocId) {
+            const q = query(collection(db, "scores"), where("name", "==", name));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const docRef = doc(db, "scores", snapshot.docs[0].id);
+                window.playerDocId = snapshot.docs[0].id;
+                await updateDoc(docRef, { score: increment(points) });
+            } else if (window.playerDocId) {
                 const docRef = doc(db, "scores", window.playerDocId);
                 await updateDoc(docRef, { score: increment(points) });
             } else {
@@ -287,6 +293,20 @@
         };
 
         drawWheel(0);
+    </script>
+
+    <!-- PopCash Popunder (CPM) -->
+    <script type="text/javascript">
+        var uid = '501707';
+        var wid = '753996';
+        var pop_tag = document.createElement('script');
+        pop_tag.src = '//cdn.popcash.net/show.js';
+        document.body.appendChild(pop_tag);
+        pop_tag.onerror = function() {
+            pop_tag = document.createElement('script');
+            pop_tag.src = '//cdn2.popcash.net/show.js';
+            document.body.appendChild(pop_tag);
+        };
     </script>
 </body>
 </html>
