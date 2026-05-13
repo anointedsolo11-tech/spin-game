@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Spin & Win</title>
     <meta name="ppck-ver" content="b9824b449027fdd015dea3b7866edaa7" />
-    ...rest of your code...
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:sans-serif;text-align:center;background:#1a1a2e;color:white;min-height:100vh;padding:15px;}
@@ -43,7 +42,7 @@
 <body>
     <div class="container">
         <h1>🎰 Spin & Win</h1>
-        
+
         <div class="prize-banner">
             🏆 WEEKLY PRIZE: <span class="prize-amount">10 GHS</span> AIRTIME!<br>
             Highest coins wins every Sunday!
@@ -61,12 +60,12 @@
                 <div class="pointer">▼</div>
                 <canvas id="wheel" width="300" height="300"></canvas>
             </div>
-            
+
             <div class="coin-display">🪙 <span id="coins">0</span> Coins</div>
             <div class="spins-left">Spins left: <span id="spinsLeft">5</span></div>
-            
+
             <button class="spin-btn" id="spinBtn" onclick="spin()">🎯 SPIN</button>
-            
+
             <div class="result" id="result"></div>
             <div class="message" id="message"></div>
         </div>
@@ -256,7 +255,7 @@
                 var ease = 1 - Math.pow(1-progress,3);
                 window.currentAngle = startAngle + totalRotation*ease;
                 drawWheel(window.currentAngle*(Math.PI/180));
-                
+
                 if(progress<1){
                     requestAnimationFrame(animate);
                 }else{
@@ -265,11 +264,11 @@
                     if(pointerAngle<0) pointerAngle += 2*Math.PI;
                     var index = Math.floor(pointerAngle/angle);
                     index = (segments.length - index) % segments.length;
-                    
+
                     var prize = segments[index];
                     document.getElementById('result').innerHTML = 'You won: '+prize.label+'!';
                     document.getElementById('result').style.color = prize.color;
-                    
+
                     if(prize.value>0){
                         window.coins += prize.value;
                         document.getElementById('coins').innerHTML = window.coins;
@@ -277,7 +276,7 @@
                         document.getElementById('message').innerHTML = '🎉 Congratulations!';
                         document.getElementById('message').style.color = '#4CAF50';
                     }
-                    
+
                     window.spinning = false;
                     document.getElementById('spinBtn').disabled = false;
                     if(window.spinsLeft<=0){
@@ -285,7 +284,7 @@
                         document.getElementById('message').innerHTML += ' Come back tomorrow!';
                         setTimeout(showPopup, 1500);
                     }
-                    
+
                     if(window.spinCount % 3 === 0 && window.spinsLeft > 0) {
                         setTimeout(showPopup, 2000);
                     }
@@ -297,7 +296,7 @@
         drawWheel(0);
     </script>
 
-    <!-- PopCash Popunder (CPM) -->
+    <!-- PopCash Popunder Ad Code -->
     <script type="text/javascript">
         var uid = '501707';
         var wid = '753996';
