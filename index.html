@@ -72,7 +72,7 @@
 
         <div class="leaderboard-box">
             <h3>🏆 WEEKLY LEADERBOARD (Total Coins)</h3>
-            <div class="top-player" id="topPlayer">-- Loading --</div>
+            <div class="top-player" id="topPlayer">No players yet</div>
             <div class="player-list" id="playerList"></div>
             <p style="font-size:11px;color:#FFD700;">📞 Winner contacted via SMS: <b>0279576459</b></p>
         </div>
@@ -90,7 +90,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, where, getDocs, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDmNM8Oeoj-oKeFvXocUhbzyCr5-FD4OqI",
@@ -129,10 +129,11 @@
                 window.playerDocId = snapshot.docs[0].id;
                 window.totalCoins = docData.data().totalCoins || 0;
                 document.getElementById("coins").innerHTML = window.totalCoins;
-                console.log("Loaded player:", name, "Coins:", window.totalCoins);
+                console.log("Loaded existing player:", name, "Coins:", window.totalCoins);
             } else {
-                // Create new player
-                const newDocRef = await addDoc(collection(db, "scores"), {
+                // Create new player document
+                const newDocRef = doc(collection(db, "scores"));
+                await setDoc(newDocRef, {
                     name: name,
                     totalCoins: 0,
                     lastUpdated: new Date().toISOString()
@@ -144,26 +145,22 @@
             }
         };
 
-        window.saveCoins = async function(newTotal) {
+        window.addCoins = async function(coinsToAdd) {
             if (!window.playerDocId) {
                 console.error("No player document ID");
-                return false;
+                return;
             }
-            try {
-                const docRef = doc(db, "scores", window.playerDocId);
-                await updateDoc(docRef, {
-                    totalCoins: newTotal,
-                    lastUpdated: new Date().toISOString()
-                });
-                console.log("Saved coins:", newTotal, "for", window.playerName);
-                return true;
-            } catch (error) {
-                console.error("Save error:", error);
-                return false;
-            }
+            const docRef = doc(db, "scores", window.playerDocId);
+            await updateDoc(docRef, {
+                totalCoins: increment(coinsToAdd),
+                lastUpdated: new Date().toISOString()
+            });
+            window.totalCoins += coinsToAdd;
+            document.getElementById("coins").innerHTML = window.totalCoins;
+            console.log("Added", coinsToAdd, "coins. New total:", window.totalCoins);
         };
 
-        // Leaderboard - realtime
+        // Leaderboard with names
         function loadLeaderboard() {
             const q = query(collection(db, "scores"), orderBy("totalCoins", "desc"), limit(10));
             onSnapshot(q, (snapshot) => {
@@ -171,28 +168,16 @@
                 let topScore = 0;
                 let listHTML = "";
                 let rank = 1;
-                
-                if (snapshot.empty) {
-                    document.getElementById("topPlayer").innerHTML = "No players yet";
-                    document.getElementById("playerList").innerHTML = "<div>Be the first to play!</div>";
-                    return;
-                }
-                
                 snapshot.forEach((doc) => {
                     const data = doc.data();
+                    const playerName = data.name || "Unknown";
                     const playerCoins = data.totalCoins || 0;
-                    if (rank === 1) { 
-                        topName = data.name; 
-                        topScore = playerCoins; 
-                    }
-                    listHTML += `<div>${rank}. ${data.name} — 🪙 ${playerCoins}</div>`;
+                    if (rank === 1) { topName = playerName; topScore = playerCoins; }
+                    listHTML += `<div>${rank}. ${playerName} — 🪙 ${playerCoins}</div>`;
                     rank++;
                 });
-                document.getElementById("topPlayer").innerHTML = `👑 ${topName}: ${topScore} Total Coins`;
-                document.getElementById("playerList").innerHTML = listHTML;
-            }, (error) => {
-                console.error("Leaderboard error:", error);
-                document.getElementById("playerList").innerHTML = "<div>Error loading leaderboard</div>";
+                document.getElementById("topPlayer").innerHTML = topScore > 0 ? `👑 ${topName}: ${topScore} Total Coins` : "No players yet";
+                document.getElementById("playerList").innerHTML = listHTML || "<div>Be the first to play!</div>";
             });
         }
 
@@ -210,7 +195,6 @@
             window.open("https://noones.com/r/AstuteDevario609", "_blank");
         };
 
-        // Wheel setup
         var canvas = document.getElementById('wheel');
         var ctx = canvas.getContext('2d');
         var segments = [
@@ -256,10 +240,7 @@
         }
 
         window.spin = function(){
-            if (window.playerName === "") {
-                alert("Please start the game first!");
-                return;
-            }
+            if (window.playerName === "") return;
             if (window.spinning || window.spinsLeft <= 0) {
                 showPopup();
                 return;
@@ -297,14 +278,9 @@
                     document.getElementById('result').style.color = prize.color;
 
                     if(prize.value > 0){
-                        // Add to total coins
-                        let newTotal = window.totalCoins + prize.value;
-                        window.totalCoins = newTotal;
-                        document.getElementById('coins').innerHTML = window.totalCoins;
-                        document.getElementById('message').innerHTML = '🎊 +'+prize.value+' coins! Total: '+newTotal;
+                        window.addCoins(prize.value);
+                        document.getElementById('message').innerHTML = '🎊 +'+prize.value+' coins added to your total!';
                         document.getElementById('message').style.color = '#4CAF50';
-                        // Save to Firebase
-                        window.saveCoins(newTotal);
                     } else {
                         document.getElementById('message').innerHTML = '😢 Better luck next spin!';
                         document.getElementById('message').style.color = '#FF8888';
