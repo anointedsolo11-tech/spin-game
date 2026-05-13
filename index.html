@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Spin & Win</title>
+    <title>Spin & Win — Weekly Contest</title>
     <meta name="ppck-ver" content="b9824b449027fdd015dea3b7866edaa7" />
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
@@ -45,7 +45,7 @@
 
         <div class="prize-banner">
             🏆 WEEKLY PRIZE: <span class="prize-amount">10 GHS</span> AIRTIME!<br>
-            Highest coins wins every Sunday!
+            Highest TOTAL coins wins every Sunday!
         </div>
 
         <div class="name-box" id="nameBox">
@@ -61,8 +61,8 @@
                 <canvas id="wheel" width="300" height="300"></canvas>
             </div>
 
-            <div class="coin-display">🪙 <span id="coins">0</span> Coins</div>
-            <div class="spins-left">Spins left: <span id="spinsLeft">5</span></div>
+            <div class="coin-display">🪙 TOTAL COINS: <span id="coins">0</span></div>
+            <div class="spins-left">Spins left today: <span id="spinsLeft">5</span></div>
 
             <button class="spin-btn" id="spinBtn" onclick="spin()">🎯 SPIN</button>
 
@@ -71,10 +71,10 @@
         </div>
 
         <div class="leaderboard-box">
-            <h3>🏅 Live Leaderboard</h3>
+            <h3>🏆 WEEKLY LEADERBOARD (Total Coins)</h3>
             <div class="top-player" id="topPlayer">No players yet</div>
             <div class="player-list" id="playerList"></div>
-            <p style="font-size:11px;color:#FFD700;">📞 Winner contacts via SMS: <b>0279576459</b></p>
+            <p style="font-size:11px;color:#FFD700;">📞 Winner contacted via SMS: <b>0279576459</b></p>
         </div>
     </div>
 
@@ -90,7 +90,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, where, getDocs, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, where, getDocs, doc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDmNM8Oeoj-oKeFvXocUhbzyCr5-FD4OqI",
@@ -106,12 +106,11 @@
         const db = getFirestore(app);
 
         window.playerName = "";
-        window.coins = 0;
+        window.totalCoins = 0;
         window.spinsLeft = 5;
         window.spinning = false;
         window.currentAngle = 0;
         window.playerDocId = null;
-        window.spinCount = 0;
 
         window.startGame = function() {
             var name = document.getElementById("nameInput").value.trim();
@@ -120,42 +119,43 @@
             document.getElementById("displayName").innerHTML = name;
             document.getElementById("nameBox").style.display = "none";
             document.getElementById("gameArea").style.display = "block";
-            checkExistingPlayer(name);
+            loadPlayerData(name);
         };
 
-        async function checkExistingPlayer(name) {
+        async function loadPlayerData(name) {
             const q = query(collection(db, "scores"), where("name", "==", name));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const docData = snapshot.docs[0];
-                window.playerDocId = docData.id;
-                window.coins = docData.data().score;
-                document.getElementById("coins").innerHTML = window.coins;
+                window.playerDocId = snapshot.docs[0].id;
+                window.totalCoins = docData.data().totalCoins || 0;
+                document.getElementById("coins").innerHTML = window.totalCoins;
+            } else {
+                // Create new player with 0 coins
+                const newDocRef = await addDoc(collection(db, "scores"), {
+                    name: name,
+                    totalCoins: 0,
+                    lastUpdated: new Date().toISOString()
+                });
+                window.playerDocId = newDocRef.id;
+                window.totalCoins = 0;
+                document.getElementById("coins").innerHTML = "0";
             }
         }
 
-        window.addScore = async function(name, points) {
-            const q = query(collection(db, "scores"), where("name", "==", name));
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) {
-                const docRef = doc(db, "scores", snapshot.docs[0].id);
-                window.playerDocId = snapshot.docs[0].id;
-                await updateDoc(docRef, { score: increment(points) });
-            } else if (window.playerDocId) {
-                const docRef = doc(db, "scores", window.playerDocId);
-                await updateDoc(docRef, { score: increment(points) });
-            } else {
-                const newDoc = await addDoc(collection(db, "scores"), {
-                    name: name,
-                    score: points,
-                    time: new Date().toISOString()
-                });
-                window.playerDocId = newDoc.id;
-            }
+        window.addCoins = async function(coinsToAdd) {
+            if (!window.playerDocId) return;
+            const docRef = doc(db, "scores", window.playerDocId);
+            await updateDoc(docRef, {
+                totalCoins: increment(coinsToAdd),
+                lastUpdated: new Date().toISOString()
+            });
+            window.totalCoins += coinsToAdd;
+            document.getElementById("coins").innerHTML = window.totalCoins;
         };
 
         function loadLeaderboard() {
-            const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
+            const q = query(collection(db, "scores"), orderBy("totalCoins", "desc"), limit(10));
             onSnapshot(q, (snapshot) => {
                 let topName = "No players yet";
                 let topScore = 0;
@@ -163,11 +163,11 @@
                 let rank = 1;
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    if (rank === 1) { topName = data.name; topScore = data.score; }
-                    listHTML += `<div>${rank}. ${data.name} - 🪙 ${data.score}</div>`;
+                    if (rank === 1) { topName = data.name; topScore = data.totalCoins || 0; }
+                    listHTML += `<div>${rank}. ${data.name} - 🪙 ${data.totalCoins || 0}</div>`;
                     rank++;
                 });
-                document.getElementById("topPlayer").innerHTML = topScore > 0 ? `👑 ${topName}: ${topScore} Coins` : "No players yet";
+                document.getElementById("topPlayer").innerHTML = topScore > 0 ? `👑 ${topName}: ${topScore} Total Coins` : "No players yet";
                 document.getElementById("playerList").innerHTML = listHTML || "<div>Be the first to play!</div>";
             });
         }
@@ -238,13 +238,12 @@
             }
             window.spinning = true;
             window.spinsLeft--;
-            window.spinCount++;
             document.getElementById('spinsLeft').innerHTML = window.spinsLeft;
             document.getElementById('spinBtn').disabled = true;
             document.getElementById('result').innerHTML = '';
             document.getElementById('message').innerHTML = '';
 
-            var spinDuration = 3000 + Math.random()*2000;
+            var spinDuration = 2000 + Math.random()*1500;
             var totalRotation = (Math.random()*3600)+1800;
             var startAngle = window.currentAngle;
             var startTime = Date.now();
@@ -266,26 +265,25 @@
                     index = (segments.length - index) % segments.length;
 
                     var prize = segments[index];
-                    document.getElementById('result').innerHTML = 'You won: '+prize.label+'!';
+                    document.getElementById('result').innerHTML = '🎉 You won: '+prize.label+'!';
                     document.getElementById('result').style.color = prize.color;
 
-                    if(prize.value>0){
-                        window.coins += prize.value;
-                        document.getElementById('coins').innerHTML = window.coins;
-                        window.addScore(window.playerName, prize.value);
-                        document.getElementById('message').innerHTML = '🎉 Congratulations!';
+                    if(prize.value > 0){
+                        // ADD to total coins (accumulates)
+                        window.addCoins(prize.value);
+                        document.getElementById('message').innerHTML = '🎊 +'+prize.value+' coins added to your total!';
                         document.getElementById('message').style.color = '#4CAF50';
+                    } else {
+                        document.getElementById('message').innerHTML = '😢 Better luck next spin!';
+                        document.getElementById('message').style.color = '#FF8888';
                     }
 
                     window.spinning = false;
                     document.getElementById('spinBtn').disabled = false;
-                    if(window.spinsLeft<=0){
-                        document.getElementById('spinBtn').innerHTML = '🔒 No Spins';
+                    
+                    if(window.spinsLeft <= 0){
+                        document.getElementById('spinBtn').innerHTML = '🔒 No Spins Today';
                         document.getElementById('message').innerHTML += ' Come back tomorrow!';
-                        setTimeout(showPopup, 1500);
-                    }
-
-                    if(window.spinCount % 3 === 0 && window.spinsLeft > 0) {
                         setTimeout(showPopup, 2000);
                     }
                 }
@@ -296,7 +294,7 @@
         drawWheel(0);
     </script>
 
-    <!-- PopCash Popunder Ad Code -->
+    <!-- PopCash Popunder Ad (Working - Confirmed by PopCash) -->
     <script type="text/javascript">
         var uid = '501707';
         var wid = '753996';
